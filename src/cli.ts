@@ -34,8 +34,14 @@ function createCli() {
     onSecurityWarning(reason) {
       console.log(`\n${chalk.red.bold('🛡️ [SECURITY WARNING]:')} ${chalk.yellow(reason)}`);
     },
-    onFinish(summary, items) {
+    onFinish(summary, items, resultContent) {
       console.log(`\n${chalk.cyan.bold('🤖 Assistant:')} ${chalk.white(summary)}`);
+      if (resultContent && resultContent.trim()) {
+        console.log(`\n${chalk.green.bold('📝 Сопроводительное письмо / Результат работы:')}`);
+        console.log(chalk.gray('--------------------------------------------------------------------------------'));
+        console.log(chalk.white(resultContent.trim()));
+        console.log(chalk.gray('--------------------------------------------------------------------------------'));
+      }
       if (items && items.length > 0) {
         console.log(`\n${chalk.bold('**Выполнено:**')}`);
         items.forEach((item) => {

@@ -9,3 +9,4 @@ preview_dump.txt
 build_markdown.py
 scratch_test.py
 recordings/
+.chrome_profile/

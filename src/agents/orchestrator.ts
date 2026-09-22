@@ -11,7 +11,7 @@ export interface OrchestratorCallbacks {
   onSubAgentStart?: (query: string) => void;
   onSubAgentEnd?: (result: string) => void;
   onSecurityWarning?: (reason: string) => void;
-  onFinish?: (summary: string, completedItems: string[]) => void;
+  onFinish?: (summary: string, completedItems: string[], resultContent?: string) => void;
 }
 
 export class OrchestratorAgent {
@@ -33,50 +33,61 @@ export class OrchestratorAgent {
     return [
       {
         name: 'navigate_to_url',
-        description: 'Перейти по указанному веб-адресу (URL) в браузере.',
+        description: 'Перейти по указанному веб-адресу (URL) в браузере. Для поиска можно переходить напрямую на поисковый URL (например, https://hh.ru/search/vacancy?text=AI-инженер) или на главную страницу.',
         parameters: {
           type: 'OBJECT',
           properties: {
-            url: { type: 'STRING', description: 'Полный URL страницы (например, https://lavka.yandex.ru)' }
+            url: { type: 'STRING', description: 'Полный URL страницы' }
           },
           required: ['url']
         }
       },
       {
-        name: 'take_screenshot',
-        description: 'Сделать снимок экрана текущего состояния страницы для валидации.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            full_page: { type: 'BOOLEAN', description: 'Сделать скриншот всей длинной страницы целиком или только видимой области' }
-          }
-        }
-      },
-      {
-        name: 'wait',
-        description: 'Подождать заданное количество секунд для загрузки страницы, анимации или сетевого ответа.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {
-            seconds: { type: 'NUMBER', description: 'Количество секунд ожидания (например, 2)' }
-          },
-          required: ['seconds']
-        }
-      },
-      {
         name: 'query_dom',
-        description: 'Запустить DOM Sub-Agent для поиска элементов на странице, проверки селекторов, чтения текстов и счетчиков.',
+        description: 'Запустить DOM Sub-Agent для поиска элементов на странице, проверки селекторов, чтения списка вакансий, кнопок и полей.',
         parameters: {
           type: 'OBJECT',
           properties: {
-            query: { type: 'STRING', description: 'Естественный вопрос к DOM (например: "Есть ли на странице поле поиска? Какой у него селектор?")' }
+            query: { type: 'STRING', description: 'Естественный вопрос к DOM (например: "Найди ссылку на первую вакансию AI-инженера" или "Где поле поиска?")' }
           },
           required: ['query']
         }
       },
       {
+        name: 'read_page_content',
+        description: 'Прочитать детальное текстовое содержимое страницы (описание вакансии, требования, стек технологий, текст статьи или письма).',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            max_length: {
+              type: 'NUMBER',
+              description: 'Максимальное количество символов для чтения (по умолчанию 3500)'
+            }
+          }
+        }
+      },
+      {
+        name: 'scroll_page',
+        description: 'Прокрутить веб-страницу вверх или вниз, чтобы увидеть больше контента, скрытые элементы или прочитать текст дальше.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            direction: {
+              type: 'STRING',
+              description: 'Направление прокрутки: "down" (вниз) или "up" (вверх)',
+              enum: ['down', 'up']
+            },
+            amount: {
+              type: 'NUMBER',
+              description: 'Количество пикселей для прокрутки (по умолчанию 600)'
+            }
+          },
+          required: ['direction']
+        }
+      },
+      {
         name: 'click_element',
-        description: 'Кликнуть на интерактивный элемент по CSS/XPath селектору.',
+        description: 'Кликнуть на интерактивный элемент по CSS/XPath селектору, полученному из query_dom.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -98,12 +109,48 @@ export class OrchestratorAgent {
         }
       },
       {
-        name: 'finish_task',
-        description: 'Завершить выполнение задачи и предоставить пользователю финальный структурированный отчет.',
+        name: 'press_key',
+        description: 'Нажать клавишу на клавиатуре (например, "Escape" для закрытия модального окна или "Enter" для подтверждения ввода).',
         parameters: {
           type: 'OBJECT',
           properties: {
-            summary: { type: 'STRING', description: 'Общий итог решения задачи' },
+            key: { type: 'STRING', description: 'Название клавиши ("Escape", "Enter", "Tab", "ArrowDown", "ArrowUp")' }
+          },
+          required: ['key']
+        }
+      },
+      {
+        name: 'wait',
+        description: 'Подождать заданное количество секунд для загрузки страницы, анимации или сетевого ответа.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            seconds: { type: 'NUMBER', description: 'Количество секунд ожидания (например, 2)' }
+          },
+          required: ['seconds']
+        }
+      },
+      {
+        name: 'take_screenshot',
+        description: 'Сделать снимок экрана текущего состояния страницы. Не вызывай после каждого промежуточного шага, чтобы не тратить лимит шагов.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            full_page: { type: 'BOOLEAN', description: 'Сделать скриншот всей длинной страницы целиком или только видимой области' }
+          }
+        }
+      },
+      {
+        name: 'finish_task',
+        description: 'Завершить выполнение задачи и предоставить пользователю финальный структурированный отчет. Если задача требовала составить сопроводительное письмо, отчет или извлечь информацию — обязательно передай полный текст этого материала в поле result_content!',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            summary: { type: 'STRING', description: 'Краткий общий итог решения задачи' },
+            result_content: {
+              type: 'STRING',
+              description: 'Полный детальный результат работы: готовый текст составленного сопроводительного письма, найденные данные, извлеченная информация или сформированный отчет.'
+            },
             completed_items: {
               type: 'ARRAY',
               description: 'Список выполненных ключевых пунктов',
@@ -121,14 +168,20 @@ export class OrchestratorAgent {
     this.safetyGuard.setUserGoal(userGoal);
 
     const systemPrompt = `Ты — автономный AI-агент для программного управления веб-браузером.
-Твоя цель: выполнить сложную многошаговую задачу пользователя в реальном браузере.
+Твоя цель: полностью автономно и последовательно выполнить сложную многошаговую задачу пользователя в реальном браузере.
 
-ПРАВИЛА И АНТИПАТТЕРНЫ:
-1. Запрещены преднаписанные селекторы в коде! Используй инструмент query_dom для обнаружения элементов на новой странице.
-2. Эффективность действий: если query_dom уже вернул нужные селекторы (например, поле ввода и кнопку отправки поиска), СРАЗУ выполняй действия (type_text, click_element). НЕ вызывай query_dom повторно для элементов, селекторы которых уже известны.
-3. Соблюдай требования безопасности (Security Layer): если пользователь просил "не оплачивай", не нажимай на финальные кнопки оплаты.
-4. Действуй последовательно: Переход -> Запрос к DOM -> Действие (клик / ввод текста) -> Проверка результата / Завершение.
-5. Когда цель достигнута, обязательно вызови инструмент finish_task с кратким отчетом.`;
+ПРАВИЛА И ПРИНЦИПЫ:
+1. Полная автономность: ты самостоятельно планируешь шаги, выбираешь инструменты и принимаешь решения на каждом этапе. Не жди подсказок.
+2. Поиск элементов: используй query_dom для обнаружения элементов (кнопок, ссылок, форм ввода) и точных селекторов на странице.
+3. Чтение и изучение страниц: используй read_page_content и query_dom для детального анализа требований вакансий, стека технологий, условий и обязанностей. Используй scroll_page для прокрутки длинных страниц.
+4. Обязательность качественного результата/письма: если задача пользователя требует составить сопроводительное письмо или отчет — ты ОБЯЗАН:
+   - Внимательно изучить реальный текст вакансии и требования на открытой странице;
+   - Написать персонализированное, профессиональное сопроводительное письмо от имени соискателя/инженера с обращением к компании/команде, описанием релевантного стека и практического опыта;
+   - Передать ПОЛНЫЙ текст составленного письма в поле result_content инструмента finish_task! Пользователь должен увидеть готовое письмо целиком.
+5. Всплывающие и модальные окна: если при переходе на сайт поверх контента появляется всплывающее окно (баннер авторизации, согласие с куки, выбор региона), перекрывающее страницу — ты ОБЯЗАН закрыть его САМ с помощью click_element по кнопке закрытия (✕ или [data-qa*="close"]) либо вызвав press_key ("Escape"). Не пытайся кликать элементы под закрывающим оверлеем!
+6. Соблюдай безопасность (Security Layer): не совершай деструктивных действий (оплата, удаление без подтверждения).
+7. Эффективность: не вызывай take_screenshot после каждого действия — фокусируйся на открытии целевой страницы/вакансии, чтении контента и формировании результата.
+8. Завершение задачи: когда цель полностью достигнута, обязательно вызови finish_task, передав summary, result_content (полный текст письма) и completed_items.`;
 
     const history: ChatMessage[] = [
       {
@@ -155,11 +208,9 @@ export class OrchestratorAgent {
       }
 
       if (!response.functionCall) {
-        // Model provided a text thought and no tool call; if it already completed or needs a push, check
         if (response.text?.toLowerCase().includes('готово') || response.text?.toLowerCase().includes('выполнено')) {
           break;
         }
-        // prompt next step
         history.push({
           role: 'model',
           parts: [{ text: response.text || '' }]
@@ -207,7 +258,7 @@ export class OrchestratorAgent {
         switch (name) {
           case 'navigate_to_url': {
             const res = await this.browser.navigate(args.url);
-            toolResult = `Successfully navigated to ${res.url}`;
+            toolResult = `Successfully navigated to ${res.url} (title: "${res.title}")`;
             break;
           }
           case 'take_screenshot': {
@@ -227,6 +278,18 @@ export class OrchestratorAgent {
             this.callbacks.onSubAgentEnd?.(toolResult);
             break;
           }
+          case 'read_page_content': {
+            const content = await this.browser.readPageContent(args.max_length || 3500);
+            toolResult = content;
+            break;
+          }
+          case 'scroll_page': {
+            const dir = (args.direction as 'down' | 'up') || 'down';
+            const amt = args.amount || 600;
+            const res = await this.browser.scroll(dir, amt);
+            toolResult = res.message;
+            break;
+          }
           case 'click_element': {
             const res = await this.browser.click(args.selector);
             toolResult = res.message;
@@ -237,9 +300,14 @@ export class OrchestratorAgent {
             toolResult = res.message;
             break;
           }
+          case 'press_key': {
+            const res = await this.browser.pressKey(args.key);
+            toolResult = res.message;
+            break;
+          }
           case 'finish_task': {
             toolResult = 'Task completed successfully.';
-            this.callbacks.onFinish?.(args.summary, args.completed_items || []);
+            this.callbacks.onFinish?.(args.summary, args.completed_items || [], args.result_content);
             return;
           }
           default:
@@ -260,7 +328,6 @@ export class OrchestratorAgent {
         });
       }
 
-      // Maintain lean history (prune old DOM query raw text into short summaries to protect Free Tier context)
       history.push({
         role: 'user',
         parts: [{
