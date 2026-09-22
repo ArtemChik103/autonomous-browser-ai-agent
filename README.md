@@ -27,8 +27,8 @@
 5. **Исследование требований и задач** (`query_dom`): извлечен стек (Python, PyTorch, LangChain, RAG, Fine-tuning LLM, vLLM, Playwright), задачи разработки автономных мультиагентных систем.
 6. **Генерация персонализированного сопроводительного письма**: агент формулирует релевантный отклик на основе своего опыта и стека позиции.
 
-> 📥 **Скачать / просмотреть исходное видео высокого качества (1920x1080 @ 30fps H.264, 5.78 MB, 49 сек):**  
-> 🔗 [**Скачать demo.mp4 из GitHub Releases (v1.2.0)**](https://github.com/ArtemChik103/autonomous-browser-ai-agent/releases/download/v1.2.0/demo.mp4) | [**demo.mp4 в репозитории**](demo.mp4)
+> 📥 **Скачать / просмотреть исходное видео высокого качества (1920x1080 @ 30fps H.264, 5.09 MB, 48 сек):**  
+> 🔗 [**Скачать demo.mp4 из GitHub Releases (v1.3.0)**](https://github.com/ArtemChik103/autonomous-browser-ai-agent/releases/download/v1.3.0/demo.mp4) | [**demo.mp4 в репозитории**](demo.mp4)
 
 ### Скриншоты из демонстрационного видео:
 
