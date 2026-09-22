@@ -2,7 +2,6 @@
 
 > **Автономный AI-агент для автоматизации веб-браузера**  
 > Решение тестового задания [kolbasa.craft.me/ai_test_task](https://kolbasa.craft.me/ai_test_task)  
-> Репозиторий: [https://github.com/ArtemChik103/autonomous-browser-ai-agent](https://github.com/ArtemChik103/autonomous-browser-ai-agent)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-Chromium-green.svg)](https://playwright.dev/)
