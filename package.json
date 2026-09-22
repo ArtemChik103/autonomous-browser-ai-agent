@@ -11,7 +11,7 @@
     "web": "tsx src/web/server.ts",
     "build": "tsc",
     "test": "tsx src/scripts/test-runner.ts",
-    "record-demo": "tsx src/scripts/record-demo.ts"
+    "record-demo": "tsx src/scripts/record-hh-demo.ts"
   },
   "keywords": [],
   "author": "",

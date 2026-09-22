@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Windows Terminal — PowerShell 7</title>
+  <style>
+    :root {
+      --bg: #0c0c0c;
+      --term-text: #cccccc;
+      --term-cyan: #38bdf8;
+      --term-green: #10b981;
+      --term-yellow: #f59e0b;
+      --term-magenta: #d946ef;
+      --term-gray: #64748b;
+      --term-white: #ffffff;
+      --term-red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 960px;
+      height: 1080px;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+      color: var(--term-text);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+    .win-header {
+      height: 38px;
+      background: #1f1f1f;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #333333;
+      padding-left: 8px;
+    }
+    .tabs-area {
+      display: flex;
+      align-items: flex-end;
+      height: 100%;
+    }
+    .tab {
+      background: var(--bg);
+      color: #ffffff;
+      font-size: 12px;
+      padding: 8px 16px;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 2px solid #38bdf8;
+    }
+    .tab-icon {
+      width: 14px;
+      height: 14px;
+      fill: #38bdf8;
+    }
+    .win-controls {
+      display: flex;
+      height: 100%;
+    }
+    .control-btn {
+      width: 46px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 12px;
+    }
+    .control-close:hover { background: #e81123; color: #fff; }
+
+    .term-body {
+      flex: 1;
+      padding: 16px 20px;
+      overflow-y: auto;
+      font-size: 13.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .term-banner {
+      color: #60a5fa;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+    .term-section {
+      margin-top: 10px;
+    }
+    .term-prompt { color: #38bdf8; font-weight: 600; }
+    .term-input { color: #ffffff; font-weight: 600; }
+    .term-cyan { color: var(--term-cyan); font-weight: 600; }
+    .term-yellow { color: var(--term-yellow); font-weight: 600; }
+    .term-green { color: var(--term-green); font-weight: 600; }
+    .term-magenta { color: var(--term-magenta); font-weight: 600; }
+    .term-gray { color: var(--term-gray); }
+    .term-white { color: var(--term-white); }
+    .term-red { color: var(--term-red); font-weight: 600; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: #38bdf8;
+      vertical-align: middle;
+      animation: blink 0.8s infinite;
+      margin-left: 2px;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <div class="win-header">
+    <div class="tabs-area">
+      <div class="tab">
+        <svg class="tab-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z"/></svg>
+        <span>PowerShell 7 (node dist/cli.js)</span>
+      </div>
+    </div>
+    <div class="win-controls">
+      <div class="control-btn">―</div>
+      <div class="control-btn">□</div>
+      <div class="control-btn control-close">✕</div>
+    </div>
+  </div>
+
+  <div class="term-body" id="termBody">
+    <div class="term-banner">======================================================
+  AI-агент для автономной автоматизации браузера
+  Модель: gemini-3.5-flash-lite (Tool Calling API)
+  Режим: Real Chromium Automation + ReAct Loop
+======================================================</div>
+    <div id="termLog"></div>
+    <span id="promptLine"><span class="term-prompt">PS C:\Users\pvppv\Desktop\roo\testovoe&gt; </span><span id="typedInput" class="term-input"></span><span class="cursor"></span></span>
+  </div>
+
+  <script>
+    const termBody = document.getElementById('termBody');
+    const termLog = document.getElementById('termLog');
+    const typedInput = document.getElementById('typedInput');
+    const promptLine = document.getElementById('promptLine');
+
+    window.addLog = function(html) {
+      const line = document.createElement('div');
+      line.className = 'term-section';
+      line.innerHTML = html;
+      termLog.appendChild(line);
+      termBody.scrollTop = termBody.scrollHeight;
+    };
+
+    window.typeInput = async function(text, speed = 25) {
+      for (let i = 0; i <= text.length; i++) {
+        typedInput.textContent = text.slice(0, i);
+        await new Promise(r => setTimeout(r, speed));
+      }
+    };
+
+    window.hidePrompt = function() {
+      promptLine.style.display = 'none';
+    };
+
+    window.showPrompt = function() {
+      promptLine.style.display = 'block';
+      typedInput.textContent = '';
+    };
+  </script>
+</body>
+</html>
