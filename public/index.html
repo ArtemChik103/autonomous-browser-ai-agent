@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autonomous Browser AI Agent — Mission Control</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="brand-badge"></div>
+        <span class="brand-title">BrowserAgent OS</span>
+        <span class="version-tag">v1.0</span>
+      </div>
+      
+      <div class="nav-status">
+        <div class="model-badge">
+          <span class="model-dot"></span>
+          <span class="model-name">Gemini 3.6 Flash (Tool Calling API)</span>
+        </div>
+        <div id="connectionStatus" class="status-pill status-idle">
+          <span class="status-dot"></span>
+          <span class="status-text">Готов к работе</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Split -->
+    <main class="workspace-grid">
+      <!-- Left Panel: Task Configuration & Presets -->
+      <aside class="control-panel">
+        <div class="panel-section">
+          <h2 class="section-title">Быстрые сценарии задания</h2>
+          <div class="preset-list">
+            <button class="preset-card" data-task="открой яндекс лавку, и выбери мой рабочий адрес (он там уже сохранён, новый добавлять не нужно). найди какой-нибудь хот-дог который сюда доставляют и добавь его в корзину. не оплачивай">
+              <div class="preset-header">
+                <span class="preset-tag">Кейс из оффера</span>
+                <span class="preset-badge">Security Guard</span>
+              </div>
+              <div class="preset-title">Яндекс.Лавка: заказ хот-дога</div>
+              <div class="preset-desc">Выбор адреса, поиск хот-дога, добавление в корзину, проверка суммы и безопасная остановка перед оплатой.</div>
+            </button>
+
+            <button class="preset-card" data-task="Найди 3 подходящие вакансии AI-инженера на hh.ru, открой каждую и извлеки ключевые требования и зарплату">
+              <div class="preset-header">
+                <span class="preset-tag">HeadHunter</span>
+                <span class="preset-badge">DOM Sub-agent</span>
+              </div>
+              <div class="preset-title">hh.ru: поиск вакансий AI-инженера</div>
+              <div class="preset-desc">Динамический поиск без хардкодных селекторов, сбор требований и зарплатных вилок.</div>
+            </button>
+
+            <button class="preset-card" data-task="Открой почтовый сервис, открой папку Входящие, прочитай последние письма и определи потенциальные спам-рассылки">
+              <div class="preset-header">
+                <span class="preset-tag">Почтовый сервис</span>
+                <span class="preset-badge">Анализ контента</span>
+              </div>
+              <div class="preset-title">Почта: выявление спама</div>
+              <div class="preset-desc">Чтение заголовков, классификация писем и формирование итогового отчета.</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <h2 class="section-title">Произвольная задача</h2>
+          <div class="prompt-box">
+            <textarea id="taskInput" placeholder="Опишите задачу для агента на естественном языке..."></textarea>
+            <div class="action-row">
+              <button id="startBtn" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Запустить агента
+              </button>
+              <button id="stopBtn" class="btn btn-danger" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"></rect></svg>
+                Остановить
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section session-info">
+          <div class="info-row">
+            <span class="info-label">Режим браузера:</span>
+            <span class="info-value">Видимый (Non-headless Chromium)</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Сессия:</span>
+            <span class="info-value">Persistent Profile (Cookies сохранены)</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Защитный слой:</span>
+            <span class="info-value text-emerald">Active (Safety Guard on)</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: Live Telemetry & Execution Feed -->
+      <section class="telemetry-panel">
+        <div class="telemetry-header">
+          <h2 class="section-title">Лента выполнения и лог инструментов</h2>
+          <div class="telemetry-actions">
+            <button id="clearLogBtn" class="btn-ghost">Очистить лог</button>
+          </div>
+        </div>
+
+        <div class="telemetry-content">
+          <div id="feedContainer" class="feed-timeline">
+            <div class="empty-state">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+              <p>Ожидание команды. Выберите готовый сценарий слева или введите задачу.</p>
+            </div>
+          </div>
+
+          <!-- Live Visual Preview -->
+          <div id="previewDrawer" class="preview-drawer hidden">
+            <div class="drawer-header">
+              <span class="drawer-title">Последний снимок экрана</span>
+              <span id="screenshotTimestamp" class="drawer-meta"></span>
+            </div>
+            <div class="drawer-body">
+              <img id="screenshotImg" src="" alt="Browser Screenshot">
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

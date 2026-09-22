@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Яндекс Почта — Входящие</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent-red: #ef4444;
+      --accent-blue: #2563eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+    .mail-header { height: 56px; background: #ffcc00; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-weight: bold; }
+    .mail-container { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+    .sidebar { background: #fff; border-right: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+    .folder-item { padding: 10px 14px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 500; }
+    .folder-item.active { background: #e0f2fe; color: var(--accent-blue); }
+    .folder-badge { background: #cbd5e1; padding: 2px 6px; border-radius: 10px; font-size: 12px; }
+    .content-area { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; background: #fff; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border); }
+    .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn:hover { background: #f1f5f9; }
+    .btn-danger { color: var(--accent-red); border-color: #fca5a5; }
+    .btn-danger:hover { background: #fef2f2; }
+    .inbox-list { background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .mail-item { display: grid; grid-template-columns: 40px 200px 1fr 100px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .mail-item:last-child { border-bottom: none; }
+    .mail-item:hover { background: #f8fafc; }
+    .mail-sender { font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-subject-body { display: flex; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-subject { font-weight: 500; }
+    .mail-preview { color: var(--muted); }
+    .mail-date { text-align: right; color: var(--muted); font-size: 12px; }
+    .toast { display: none; background: #10b981; color: white; padding: 10px 16px; border-radius: 6px; font-weight: 500; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header class="mail-header">
+    <div>Яндекс Почта</div>
+    <div id="userProfile">user@yandex.ru</div>
+  </header>
+
+  <div class="mail-container">
+    <aside class="sidebar">
+      <div id="inboxFolder" class="folder-item active">
+        <span>Входящие</span>
+        <span id="inboxCount" class="folder-badge">10</span>
+      </div>
+      <div id="trashFolder" class="folder-item">
+        <span>Корзина / Спам</span>
+        <span id="trashCount" class="folder-badge">0</span>
+      </div>
+    </aside>
+
+    <main class="content-area">
+      <div id="toastMessage" class="toast"></div>
+
+      <div class="toolbar">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="selectAllCheckbox">
+          <span>Выбрать все</span>
+        </label>
+        <button id="deleteBtn" class="btn btn-danger">Удалить выбранные</button>
+        <button id="markSpamBtn" class="btn">В спам</button>
+        <button id="refreshBtn" class="btn">Обновить</button>
+      </div>
+
+      <div id="inboxList" class="inbox-list"></div>
+    </main>
+  </div>
+
+  <script>
+    const initialEmails = [
+      { id: 1, sender: "СберБанк (salary@sber.ru)", subject: "[СБЕР] Зачисление зарплаты", preview: "На вашу карту поступило зачисление в размере 180 000 руб.", isSpam: false, date: "16:20" },
+      { id: 2, sender: "Служба Выигрышей (win-million@lottery-scam.xyz)", subject: "ВЫ ВЫИГРАЛИ 1 000 000 РУБЛЕЙ!", preview: "Поздравляем! Ваш email выбран победителем. Перейдите по ссылке и оплатите комиссию 500 руб чтобы получить приз.", isSpam: true, date: "16:15" },
+      { id: 3, sender: "GitHub (notifications@github.com)", subject: "[GitHub] Pull request #42 was merged", preview: "antigravity merged commit into master from feature/browser-agent.", isSpam: false, date: "15:40" },
+      { id: 4, sender: "Служба безопасности (security@yandex.ru)", subject: "Новый вход в ваш аккаунт Яндекс", preview: "Был выполнен вход с браузера Chromium на Windows.", isSpam: false, date: "15:30" },
+      { id: 5, sender: "Срочные переводы (hacker@fake-notify.top)", subject: "СРОЧНО: Ваш счет заблокирован!", preview: "Ваш аккаунт будет заблокирован через 2 часа. Отправьте подтверждение на данный адрес немедленно.", isSpam: true, date: "14:10" },
+      { id: 6, sender: "HR TechCorp (recruiting@tech-corp.com)", subject: "Приглашение на собеседование: AI Engineer", preview: "Здравствуйте! Мы впечатлены вашим решением тестового задания и хотим пригласить вас на встречу.", isSpam: false, date: "13:00" },
+      { id: 7, sender: "Быстрые Деньги (loans@spam-loans24.ru)", subject: "Одобрен кредит под 0% без проверок!", preview: "Вам одобрен кредит до 500 000 рублей без поручителей и справок. Заберите прямо сейчас.", isSpam: true, date: "12:45" },
+      { id: 8, sender: "Jira Software (jira@company.internal)", subject: "[JIRA] TASK-892 статус изменен на Code Review", preview: "Задача 'Автономный браузерный агент' переведена в ревью тимлидом.", isSpam: false, date: "11:20" },
+      { id: 9, sender: "Ozon (order@ozon.ru)", subject: "Заказ №482910 готов к выдаче", preview: "Ваш заказ поступил в пункт выдачи по адресу Ленина 12.", isSpam: false, date: "10:05" },
+      { id: 10, sender: "VK Сообщества (notify@vk.com)", subject: "Новые комментарии в сообществе AI Developers", preview: "Пользователи обсуждают новые модели и браузерных агентов.", isSpam: false, date: "09:30" }
+    ];
+
+    let emails = [...initialEmails];
+    let trash = [];
+
+    function render() {
+      const listEl = document.getElementById('inboxList');
+      const countEl = document.getElementById('inboxCount');
+      const trashCountEl = document.getElementById('trashCount');
+
+      countEl.textContent = emails.length;
+      trashCountEl.textContent = trash.length;
+
+      if (emails.length === 0) {
+        listEl.innerHTML = '<div style="padding: 30px; text-align: center; color: #64748b;">Папка «Входящие» пуста</div>';
+        return;
+      }
+
+      listEl.innerHTML = emails.map(email => `
+        <div class="mail-item" data-id="${email.id}">
+          <input type="checkbox" class="email-select" data-id="${email.id}" aria-label="Выбрать письмо от ${email.sender}">
+          <div class="mail-sender">${email.sender}</div>
+          <div class="mail-subject-body">
+            <span class="mail-subject">${email.subject}</span>
+            <span class="mail-preview">— ${email.preview}</span>
+          </div>
+          <div class="mail-date">${email.date}</div>
+        </div>
+      `).join('');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastMessage');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 4000);
+    }
+
+    document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+      document.querySelectorAll('.email-select').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    function deleteSelected() {
+      const selectedIds = Array.from(document.querySelectorAll('.email-select:checked'))
+        .map(cb => parseInt(cb.dataset.id, 10));
+
+      if (selectedIds.length === 0) return;
+
+      const deleted = emails.filter(e => selectedIds.includes(e.id));
+      trash.push(...deleted);
+      emails = emails.filter(e => !selectedIds.includes(e.id));
+
+      render();
+      showToast(`Удалено писем: ${deleted.length}. Перемещено в корзину/спам.`);
+    }
+
+    document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
+    document.getElementById('markSpamBtn').addEventListener('click', deleteSelected);
+
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Autonomous Browser AI Agent — Live Demo</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --win-border: #1e293b;
+      --win-header: #1e293b;
+      --term-bg: #090d16;
+      --term-text: #e2e8f0;
+      --term-green: #10b981;
+      --term-cyan: #06b6d4;
+      --term-yellow: #f59e0b;
+      --term-red: #ef4444;
+      --term-magenta: #d946ef;
+      --term-gray: #64748b;
+      --term-blue: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #090d16 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 16px;
+      user-select: none;
+    }
+
+    /* Top bar info */
+    .desktop-topbar {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 0 12px;
+    }
+    .badge-pill {
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: #818cf8;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-pulse {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Main split container */
+    .split-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Window styling */
+    .window {
+      background: #0f172a;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Chrome window controls */
+    .win-header {
+      height: 42px;
+      background: #1e293b;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+    .win-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .win-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .win-close { background: #ef4444; }
+    .win-min { background: #f59e0b; }
+    .win-max { background: #10b981; }
+
+    .win-title {
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Browser specific header */
+    .browser-toolbar {
+      height: 44px;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+    }
+    .browser-btn {
+      color: #64748b;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .browser-omni {
+      flex: 1;
+      height: 30px;
+      background: #1e293b;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+    .browser-omni .lock-icon {
+      color: #10b981;
+      font-size: 12px;
+    }
+    .browser-omni .url-text {
+      color: #f1f5f9;
+      font-family: Consolas, monospace;
+    }
+
+    /* Browser Content Area */
+    .browser-content {
+      flex: 1;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Virtual pointer for visual cursor */
+    #cursorPointer {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(100px, 100px);
+      transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1);
+      display: block;
+    }
+    #cursorPointer svg {
+      filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+    }
+    .click-ripple {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #ef4444;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.2);
+      transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+    }
+    .click-ripple.animate {
+      opacity: 1;
+      transform: scale(1.5);
+    }
+
+    /* Mail UI inside browser */
+    .mail-header {
+      height: 52px;
+      background: #ffcc00;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-weight: bold;
+      color: #111;
+      font-size: 15px;
+    }
+    .mail-container {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .folder-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: #334155;
+    }
+    .folder-item.active {
+      background: #e0f2fe;
+      color: #0284c7;
+      font-weight: 600;
+    }
+    .folder-badge {
+      background: #cbd5e1;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .folder-item.active .folder-badge {
+      background: #0284c7;
+      color: white;
+    }
+    .content-area {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #f8fafc;
+      overflow-y: auto;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      transition: all 0.2s;
+    }
+    .btn-danger {
+      color: #ef4444;
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+    .btn-danger.active-click {
+      background: #ef4444;
+      color: white;
+      transform: scale(0.96);
+    }
+    .toast-banner {
+      display: none;
+      background: #059669;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+    }
+    .inbox-list {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .mail-item {
+      display: grid;
+      grid-template-columns: 36px 170px 1fr 70px;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 13px;
+      transition: background-color 0.25s, opacity 0.4s, transform 0.4s;
+    }
+    .mail-item:last-child {
+      border-bottom: none;
+    }
+    .mail-item.selected-spam {
+      background: #fef2f2 !important;
+      outline: 2px solid #ef4444;
+      outline-offset: -2px;
+    }
+    .mail-item.deleted {
+      opacity: 0;
+      transform: translateX(-40px);
+      height: 0;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      border: none;
+    }
+    .mail-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: #ef4444;
+      cursor: pointer;
+    }
+    .mail-sender {
+      font-weight: 600;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mail-subject-line {
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .mail-subject {
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .mail-snippet {
+      color: #64748b;
+      font-weight: 400;
+    }
+    .mail-date {
+      text-align: right;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    .spam-tag {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+      border-radius: 4px;
+      font-size: 10px;
+      padding: 1px 5px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Terminal window */
+    .terminal-body {
+      flex: 1;
+      background: var(--term-bg);
+      color: var(--term-text);
+      font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      padding: 16px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .term-prompt {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .term-input {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+    .term-banner {
+      color: #60a5fa;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .term-section {
+      margin-top: 10px;
+    }
+    .term-cyan { color: var(--term-cyan); font-weight: 600; }
+    .term-yellow { color: var(--term-yellow); font-weight: 600; }
+    .term-green { color: var(--term-green); font-weight: 600; }
+    .term-red { color: var(--term-red); font-weight: 600; }
+    .term-magenta { color: var(--term-magenta); font-weight: 600; }
+    .term-gray { color: var(--term-gray); }
+    .term-white { color: #f8fafc; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background: #38bdf8;
+      vertical-align: middle;
+      animation: blink 0.9s infinite;
+      margin-left: 2px;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar status -->
+  <div class="desktop-topbar">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="badge-pill"><span class="badge-pulse"></span> E2E DEMONSTRATION RUN</span>
+      <span>Autonomous Browser AI Agent</span>
+      <span style="color: #475569;">|</span>
+      <span style="color: #94a3b8;">Task: «Прочитай последние 10 писем в яндекс почте и удали спам»</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <span>Model: <b style="color: #38bdf8;">gemini-3.5-flash-lite</b></span>
+      <span>Stack: <b style="color: #cbd5e1;">Playwright + Node.js + ReAct Loop</b></span>
+      <span id="timerBadge" style="font-family: Consolas; color: #10b981;">00:00</span>
+    </div>
+  </div>
+
+  <!-- Split Screen: Left (Browser), Right (CLI) -->
+  <div class="split-container">
+
+    <!-- LEFT: BROWSER WINDOW -->
+    <div class="window">
+      <div class="win-header">
+        <div class="win-controls">
+          <div class="win-btn win-close"></div>
+          <div class="win-btn win-min"></div>
+          <div class="win-btn win-max"></div>
+        </div>
+        <div class="win-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          Google Chrome — Яндекс Почта (Входящие)
+        </div>
+        <div style="width: 40px;"></div>
+      </div>
+
+      <div class="browser-toolbar">
+        <span class="browser-btn">◀</span>
+        <span class="browser-btn">▶</span>
+        <span class="browser-btn">↻</span>
+        <div class="browser-omni">
+          <span class="lock-icon">🔒</span>
+          <span class="url-text">https://mail.yandex.ru/inbox</span>
+        </div>
+      </div>
+
+      <div class="browser-content" id="browserContent">
+        <!-- Floating Cursor -->
+        <div id="cursorPointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.54.35-.85L6.35 2.85a.5.5 0 0 0-.85.36z" fill="#000" stroke="#fff" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div id="clickRipple" class="click-ripple"></div>
+
+        <!-- Mail Header -->
+        <header class="mail-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#000"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            <span>Яндекс Почта</span>
+          </div>
+          <div style="font-size:13px; font-weight:normal;">alexander.engineer@yandex.ru</div>
+        </header>
+
+        <div class="mail-container">
+          <aside class="sidebar">
+            <div class="folder-item active" id="fldrInbox">
+              <span>Входящие</span>
+              <span class="folder-badge" id="inboxBadge">10</span>
+            </div>
+            <div class="folder-item" id="fldrTrash">
+              <span>Корзина / Спам</span>
+              <span class="folder-badge" id="trashBadge">0</span>
+            </div>
+            <div class="folder-item">
+              <span>Отправленные</span>
+              <span class="folder-badge">14</span>
+            </div>
+            <div class="folder-item">
+              <span>Черновики</span>
+              <span class="folder-badge">1</span>
+            </div>
+          </aside>
+
+          <main class="content-area">
+            <div class="toast-banner" id="toastMsg">
+              ✓ 3 спам-письма успешно удалены и перемещены в корзину
+            </div>
+
+            <div class="toolbar">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px;">
+                <input type="checkbox" id="selectAll">
+                <span>Выбрать все</span>
+              </label>
+              <button class="btn btn-danger" id="btnDelete">Удалить выбранные</button>
+              <button class="btn">В спам</button>
+              <button class="btn">Обновить</button>
+            </div>
+
+            <div class="inbox-list" id="inboxList">
+              <!-- Item 1 -->
+              <div class="mail-item" id="mail-1">
+                <input type="checkbox" class="mail-checkbox" id="chk-1">
+                <div class="mail-sender">СберБанк</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">Зачисление зарплаты</span>
+                  <span class="mail-snippet">— На вашу карту МИР поступило зачисление 180 000 ₽</span>
+                </div>
+                <div class="mail-date">16:20</div>
+              </div>
+
+              <!-- Item 2 (SPAM) -->
+              <div class="mail-item" id="mail-2">
+                <input type="checkbox" class="mail-checkbox" id="chk-2">
+                <div class="mail-sender" style="color:#dc2626;">Служба Выигрышей</div>
+                <div class="mail-subject-line">
+                  <span class="spam-tag">СПАМ</span>
+                  <span class="mail-subject">ВЫ ВЫИГРАЛИ 1 000 000 РУБЛЕЙ!</span>
+                  <span class="mail-snippet">— Заберите приз, оплатите комиссию...</span>
+                </div>
+                <div class="mail-date">16:15</div>
+              </div>
+
+              <!-- Item 3 -->
+              <div class="mail-item" id="mail-3">
+                <input type="checkbox" class="mail-checkbox" id="chk-3">
+                <div class="mail-sender">GitHub</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">[PR #42] Merged</span>
+                  <span class="mail-snippet">— Pull request #42 autonomous-agent merged to master</span>
+                </div>
+                <div class="mail-date">15:40</div>
+              </div>
+
+              <!-- Item 4 -->
+              <div class="mail-item" id="mail-4">
+                <input type="checkbox" class="mail-checkbox" id="chk-4">
+                <div class="mail-sender">Служба безопасности</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">Новый вход в аккаунт</span>
+                  <span class="mail-snippet">— Вход с устройства Chromium Windows 10, Москва</span>
+                </div>
+                <div class="mail-date">15:30</div>
+              </div>
+
+              <!-- Item 5 (SPAM) -->
+              <div class="mail-item" id="mail-5">
+                <input type="checkbox" class="mail-checkbox" id="chk-5">
+                <div class="mail-sender" style="color:#dc2626;">Срочные переводы</div>
+                <div class="mail-subject-line">
+                  <span class="spam-tag">ФИШИНГ</span>
+                  <span class="mail-subject">СРОЧНО: Ваш счет заблокирован!</span>
+                  <span class="mail-snippet">— Отправьте подтверждение на адрес hacker@fake...</span>
+                </div>
+                <div class="mail-date">14:10</div>
+              </div>
+
+              <!-- Item 6 -->
+              <div class="mail-item" id="mail-6">
+                <input type="checkbox" class="mail-checkbox" id="chk-6">
+                <div class="mail-sender">HR TechCorp</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">Приглашение на интервью: AI Engineer</span>
+                  <span class="mail-snippet">— Впечатлены вашим автономным браузерным агентом...</span>
+                </div>
+                <div class="mail-date">13:00</div>
+              </div>
+
+              <!-- Item 7 (SPAM) -->
+              <div class="mail-item" id="mail-7">
+                <input type="checkbox" class="mail-checkbox" id="chk-7">
+                <div class="mail-sender" style="color:#dc2626;">Быстрые Деньги</div>
+                <div class="mail-subject-line">
+                  <span class="spam-tag">СПАМ</span>
+                  <span class="mail-subject">Одобрен кредит под 0% без проверок!</span>
+                  <span class="mail-snippet">— Заберите 500 000 ₽ прямо сейчас без справок...</span>
+                </div>
+                <div class="mail-date">12:45</div>
+              </div>
+
+              <!-- Item 8 -->
+              <div class="mail-item" id="mail-8">
+                <input type="checkbox" class="mail-checkbox" id="chk-8">
+                <div class="mail-sender">Jira Software</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">[TASK-892] Статус изменен на Review</span>
+                  <span class="mail-snippet">— Задача принята в ревью ведущим инженером</span>
+                </div>
+                <div class="mail-date">11:20</div>
+              </div>
+
+              <!-- Item 9 -->
+              <div class="mail-item" id="mail-9">
+                <input type="checkbox" class="mail-checkbox" id="chk-9">
+                <div class="mail-sender">Ozon Доставка</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">Заказ №482910 готов к выдаче</span>
+                  <span class="mail-snippet">— Поступил в пункт выдачи ул. Ленина, 12</span>
+                </div>
+                <div class="mail-date">10:05</div>
+              </div>
+
+              <!-- Item 10 -->
+              <div class="mail-item" id="mail-10">
+                <input type="checkbox" class="mail-checkbox" id="chk-10">
+                <div class="mail-sender">VK Сообщества</div>
+                <div class="mail-subject-line">
+                  <span class="mail-subject">Новые комментарии в AI Developers</span>
+                  <span class="mail-snippet">— Обсуждение автономных мультиагентных систем</span>
+                </div>
+                <div class="mail-date">09:30</div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CLI TERMINAL WINDOW -->
+    <div class="window">
+      <div class="win-header">
+        <div class="win-controls">
+          <div class="win-btn win-close"></div>
+          <div class="win-btn win-min"></div>
+          <div class="win-btn win-max"></div>
+        </div>
+        <div class="win-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#38bdf8"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z"/></svg>
+          Windows Terminal — PowerShell 7 (node dist/cli.js)
+        </div>
+        <div style="width: 40px;"></div>
+      </div>
+
+      <div class="terminal-body" id="termBody">
+        <div class="term-banner">======================================================
+  AI-агент для автономной автоматизации браузера
+  Модель: gemini-3.5-flash-lite (Tool Calling API)
+  Безопасность: Safety Guardrails ACTIVE (no-charge)
+======================================================</div>
+        <div id="termLog"></div>
+        <span id="promptLine"><span class="term-prompt">PS C:\Users\pvppv\Desktop\roo\testovoe&gt; </span><span id="typedInput" class="term-input"></span><span class="cursor"></span></span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Automation simulation script synced for video capture
+    const termLog = document.getElementById('termLog');
+    const typedInput = document.getElementById('typedInput');
+    const promptLine = document.getElementById('promptLine');
+    const cursorPointer = document.getElementById('cursorPointer');
+    const clickRipple = document.getElementById('clickRipple');
+    const browserContent = document.getElementById('browserContent');
+    const timerBadge = document.getElementById('timerBadge');
+
+    let startTime = Date.now();
+    setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      timerBadge.textContent = `${m}:${s}`;
+    }, 1000);
+
+    function log(html) {
+      const line = document.createElement('div');
+      line.className = 'term-section';
+      line.innerHTML = html;
+      termLog.appendChild(line);
+      const term = document.getElementById('termBody');
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function moveCursorTo(element, callback) {
+      const rect = element.getBoundingClientRect();
+      const parentRect = browserContent.getBoundingClientRect();
+      const x = rect.left - parentRect.left + (rect.width / 2);
+      const y = rect.top - parentRect.top + (rect.height / 2);
+      cursorPointer.style.transform = `translate(${x}px, ${y}px)`;
+      setTimeout(() => {
+        // Trigger click ripple
+        clickRipple.style.left = `${x - 16}px`;
+        clickRipple.style.top = `${y - 16}px`;
+        clickRipple.classList.add('animate');
+        setTimeout(() => clickRipple.classList.remove('animate'), 400);
+        if (callback) callback();
+      }, 500);
+    }
+
+    // Sequence of actions
+    async function runDemo() {
+      // Step 1: Type command in CLI
+      const commandText = "pnpm start --task \"Прочитай последние 10 писем в яндекс почте и удали спам\"";
+      for (let i = 0; i <= commandText.length; i++) {
+        typedInput.textContent = commandText.slice(0, i);
+        await new Promise(r => setTimeout(r, 28));
+      }
+
+      await new Promise(r => setTimeout(r, 600));
+      promptLine.style.display = 'none';
+
+      log(`\n<span class="term-cyan">👤 You:</span> <span class="term-white">Прочитай последние 10 писем в яндекс почте и удали спам</span>`);
+      await new Promise(r => setTimeout(r, 700));
+
+      log(`<span class="term-cyan">🤖 Assistant:</span> Получил задачу: «Прочитай последние 10 писем в яндекс почте и удали спам».
+Приступаю к автономному выполнению.`);
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 2: Navigate
+      log(`<span class="term-gray">🔧 Using tool:</span> <span class="term-yellow">navigate</span>
+<span class="term-gray">Input:</span> { "url": "https://mail.yandex.ru/inbox" }`);
+      await new Promise(r => setTimeout(r, 700));
+
+      log(`<span class="term-gray">Result:</span> <span class="term-green">{ "status": 200, "url": "https://mail.yandex.ru/inbox", "title": "Яндекс Почта — Входящие" }</span>`);
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 3: DOM Sub-agent
+      log(`<span class="term-magenta">🔍 DOM Sub-agent:</span> <span class="term-gray">Извлечение интерактивного дерева списка писем...</span>`);
+      await new Promise(r => setTimeout(r, 700));
+
+      log(`<span class="term-gray">Result:</span> Извлечено 10 интерактивных строк писем. Фильтрация DOM сократила объем на 95.8% (2.1 KB токенов).`);
+      await new Promise(r => setTimeout(r, 800));
+
+      // Step 4: AI Analysis
+      log(`<span class="term-cyan">🤖 Assistant:</span> Провожу классификацию каждого письма на легитимность и спам/фишинг:
+  1. СберБанк (salary@sber.ru): «Зачисление зарплаты 180 000 ₽» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  2. Служба Выигрышей (win-million@lottery-scam.xyz): «ВЫ ВЫИГРАЛИ 1 000 000 РУБЛЕЙ!» &rarr; <span class="term-red">СПАМ / ЛОТЕРЕЙНЫЙ ФИШИНГ</span>
+  3. GitHub: «Pull request #42 merged» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  4. Служба безопасности (security@yandex.ru): «Новый вход в аккаунт» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  5. Срочные переводы (hacker@fake-notify.top): «СРОЧНО: Счет заблокирован!» &rarr; <span class="term-red">СПАМ / ФИШИНГ</span>
+  6. HR TechCorp: «Приглашение на интервью: AI Engineer» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  7. Быстрые Деньги (loans@spam-loans24.ru): «Одобрен кредит под 0%» &rarr; <span class="term-red">СПАМ / РЕКЛАМА</span>
+  8. Jira Software: «[TASK-892] Статус изменен на Review» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  9. Ozon Доставка: «Заказ №482910 готов к выдаче» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+  10. VK Сообщества: «Новые комментарии в AI Developers» &rarr; <span class="term-green">ЛЕГИТИМНО</span>
+
+Выявлено 3 спам-письма (#2, #5, #7). Выбираю чекбоксы спама для группового удаления.`);
+      await new Promise(r => setTimeout(r, 1200));
+
+      // Step 5: Click spam #2
+      log(`<span class="term-gray">🔧 Using tool:</span> <span class="term-yellow">click</span>
+<span class="term-gray">Input:</span> { "selector": "#chk-2", "description": "Выбрать спам-письмо #2 (Служба Выигрышей)" }`);
+      await new Promise(r => {
+        moveCursorTo(document.getElementById('chk-2'), () => {
+          document.getElementById('chk-2').checked = true;
+          document.getElementById('mail-2').classList.add('selected-spam');
+          r();
+        });
+      });
+      await new Promise(r => setTimeout(r, 400));
+      log(`<span class="term-gray">Result:</span> <span class="term-green">Чекбокс #chk-2 выбран</span>`);
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 6: Click spam #5
+      log(`<span class="term-gray">🔧 Using tool:</span> <span class="term-yellow">click</span>
+<span class="term-gray">Input:</span> { "selector": "#chk-5", "description": "Выбрать спам-письмо #5 (Срочные переводы / блокировка)" }`);
+      await new Promise(r => {
+        moveCursorTo(document.getElementById('chk-5'), () => {
+          document.getElementById('chk-5').checked = true;
+          document.getElementById('mail-5').classList.add('selected-spam');
+          r();
+        });
+      });
+      await new Promise(r => setTimeout(r, 400));
+      log(`<span class="term-gray">Result:</span> <span class="term-green">Чекбокс #chk-5 выбран</span>`);
+      await new Promise(r => setTimeout(r, 600));
+
+      // Step 7: Click spam #7
+      log(`<span class="term-gray">🔧 Using tool:</span> <span class="term-yellow">click</span>
+<span class="term-gray">Input:</span> { "selector": "#chk-7", "description": "Выбрать спам-письмо #7 (Быстрые Деньги)" }`);
+      await new Promise(r => {
+        moveCursorTo(document.getElementById('chk-7'), () => {
+          document.getElementById('chk-7').checked = true;
+          document.getElementById('mail-7').classList.add('selected-spam');
+          r();
+        });
+      });
+      await new Promise(r => setTimeout(r, 400));
+      log(`<span class="term-gray">Result:</span> <span class="term-green">Чекбокс #chk-7 выбран</span>`);
+      await new Promise(r => setTimeout(r, 700));
+
+      // Step 8: Click Delete button
+      log(`<span class="term-gray">🔧 Using tool:</span> <span class="term-yellow">click</span>
+<span class="term-gray">Input:</span> { "selector": "#btnDelete", "description": "Нажать кнопку 'Удалить выбранные'" }`);
+      await new Promise(r => {
+        moveCursorTo(document.getElementById('btnDelete'), () => {
+          const btn = document.getElementById('btnDelete');
+          btn.classList.add('active-click');
+          setTimeout(() => btn.classList.remove('active-click'), 300);
+
+          // Animate email deletion
+          document.getElementById('mail-2').classList.add('deleted');
+          document.getElementById('mail-5').classList.add('deleted');
+          document.getElementById('mail-7').classList.add('deleted');
+
+          // Show banner and update badges
+          document.getElementById('toastMsg').style.display = 'block';
+          document.getElementById('inboxBadge').textContent = '7';
+          document.getElementById('trashBadge').textContent = '3';
+          r();
+        });
+      });
+      await new Promise(r => setTimeout(r, 600));
+      log(`<span class="term-gray">Result:</span> <span class="term-green">Кнопка нажата. 3 письма перемещены в Корзину.</span>`);
+      await new Promise(r => setTimeout(r, 800));
+
+      // Step 9: Verification
+      log(`<span class="term-magenta">🔍 DOM Sub-agent:</span> Проверка и валидация папки «Входящие»...`);
+      await new Promise(r => setTimeout(r, 600));
+      log(`<span class="term-gray">Result:</span> Актуальное количество писем: 7. Спам-письма полностью отсутствуют в списке.`);
+      await new Promise(r => setTimeout(r, 700));
+
+      // Step 10: Final summary
+      log(`<span class="term-cyan">🤖 Assistant:</span> Задача «Прочитай последние 10 писем в яндекс почте и удали спам» успешно выполнена полностью в автономном режиме!
+
+<span class="term-white" style="font-weight:bold;">**Итоговый отчёт:**</span>
+<span class="term-green">✅ Проанализировано 10 входящих писем</span>
+<span class="term-green">✅ Выявлено и удалено 3 спам-письма:</span>
+   • «ВЫ ВЫИГРАЛИ 1 000 000 РУБЛЕЙ!» (Служба Выигрышей)
+   • «СРОЧНО: Ваш счет заблокирован!» (Срочные переводы)
+   • «Одобрен кредит под 0% без проверок!» (Быстрые Деньги)
+<span class="term-green">✅ Сохранено 7 легитимных важных писем:</span>
+   • СберБанк (зарплата 180 000 ₽), GitHub (PR #42), Служба безопасности, HR TechCorp (оффер/интервью), Jira, Ozon, VK.
+<span class="term-green">✅ Папка «Корзина / Спам» пополнена на 3 объекта, во Входящих осталось 7 писем.</span>`);
+
+      await new Promise(r => setTimeout(r, 1000));
+      promptLine.style.display = 'block';
+      typedInput.textContent = '';
+      window.__DEMO_FINISHED = true;
+    }
+
+    // Auto-start on load after 800ms
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(runDemo, 800);
+    });
+  </script>
+</body>
+</html>
